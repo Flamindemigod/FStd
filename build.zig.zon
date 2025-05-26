@@ -1,0 +1,15 @@
+.{
+    .name = .FStd,
+    .version = "0.0.1",
+    .fingerprint = 0xf04d51a75ed56963, // Changing this has security and trust implications.
+    .minimum_zig_version = "0.14.1",
+    .dependencies = .{},
+    .paths = .{
+        "build.zig",
+        "build.zig.zon",
+        "src",
+        // For example...
+        //"LICENSE",
+        //"README.md",
+    },
+}
