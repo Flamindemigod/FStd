@@ -52,7 +52,7 @@ pub fn run(self: *Self) void {
             switch (res) {
                 .Pending => continue,
                 .Finished => {
-                    _ = self.futures.swapRemove(idx);
+                    _ = self.futures.swapRemove(@min(idx, self.futures.items.len - 1));
                 },
             }
         }
