@@ -58,39 +58,3 @@ pub fn run(self: *Self) void {
         }
     }
 }
-
-test "KyotoSimple" {
-    const allocator = testing.allocator;
-    var kyoto = Self.init(allocator);
-    defer kyoto.deinit();
-
-    const Printer = struct {
-        value: i64 = 0,
-
-        const SelfP = @This();
-        pub fn poll(ctx: *anyopaque) Poll {
-            const self: *SelfP = @ptrCast(@alignCast(ctx));
-            if (self.value < 10) {
-                std.debug.print("Pending: {d}\n", .{self.value});
-                self.value += 1;
-                return Poll.Pending;
-            } else {
-                std.debug.print("Finished: {d}\n", .{self.value});
-                return Poll{ .Finished = self };
-            }
-        }
-
-        pub fn future(self: *SelfP) Future {
-            return .{
-                .ptr = self,
-                .vtable = &.{ .poll = SelfP.poll },
-            };
-        }
-    };
-    var p = Printer{};
-    var p2 = Printer{ .value = -50 };
-    try kyoto.schedule(p.future());
-    try kyoto.schedule(p2.future());
-    kyoto.run();
-    try testing.expect(true);
-}

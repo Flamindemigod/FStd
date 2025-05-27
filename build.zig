@@ -31,10 +31,13 @@ pub fn build(b: *std.Build) void {
 
     b.installArtifact(lib);
 
-    const sdl = makeExample(b, "examples/sdl3.zig", "sdl3-fstd");
+    const sdl = makeExample(b, "examples/sdl3-kyoto.zig", "sdl3-kyoto");
     sdl.linkSystemLibrary("SDL3");
     sdl.linkLibC();
     b.installArtifact(sdl);
+
+    const counter = makeExample(b, "examples/counter-kyoto.zig", "counter-kyoto");
+    b.installArtifact(counter);
 
     const lib_unit_tests = b.addTest(.{
         .root_module = lib_mod,
