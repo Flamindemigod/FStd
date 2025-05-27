@@ -19,6 +19,7 @@
           gdb
           zig
           zls
+	   sdl3
           ];
         shellHook = ''
           export OPT="Debug"

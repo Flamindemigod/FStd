@@ -5,7 +5,7 @@
 
 const std = @import("std");
 const testing = std.testing;
-const Poll = union(enum) {
+pub const Poll = union(enum) {
     Pending,
     Finished: *anyopaque,
 };

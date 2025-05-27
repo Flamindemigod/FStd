@@ -1,25 +1,29 @@
 const std = @import("std");
+pub fn makeExample(b: *std.Build, path: []const u8, name: []const u8) *std.Build.Step.Compile {
+    const exe = b.addExecutable(.{
+        .name = name,
+        .target = target,
+        .optimize = optimize,
+        .root_source_file = b.path(path),
+    });
+    exe.root_module.addImport("FStd", lib.root_module);
+    return exe;
+}
 
+var target: std.Build.ResolvedTarget = undefined;
+var optimize: std.builtin.OptimizeMode = undefined;
+var lib: *std.Build.Step.Compile = undefined;
 pub fn build(b: *std.Build) void {
-    const target = b.standardTargetOptions(.{});
+    target = b.standardTargetOptions(.{});
 
-    const optimize = b.standardOptimizeOption(.{});
+    optimize = b.standardOptimizeOption(.{});
     const lib_mod = b.createModule(.{
         .root_source_file = b.path("src/root.zig"),
         .target = target,
         .optimize = optimize,
     });
 
-    // We will also create a module for our other entry point, 'main.zig'.
-    const exe_mod = b.createModule(.{
-        .root_source_file = b.path("src/main.zig"),
-        .target = target,
-        .optimize = optimize,
-    });
-
-    exe_mod.addImport("FStd_lib", lib_mod);
-
-    const lib = b.addLibrary(.{
+    lib = b.addLibrary(.{
         .linkage = .static,
         .name = "FStd",
         .root_module = lib_mod,
@@ -27,19 +31,10 @@ pub fn build(b: *std.Build) void {
 
     b.installArtifact(lib);
 
-    const exe = b.addExecutable(.{
-        .name = "FStdTesting",
-        .root_module = exe_mod,
-    });
-
-    b.installArtifact(exe);
-
-    const run_cmd = b.addRunArtifact(exe);
-    run_cmd.step.dependOn(b.getInstallStep());
-
-    if (b.args) |args| {
-        run_cmd.addArgs(args);
-    }
+    const sdl = makeExample(b, "examples/sdl3.zig", "sdl3-fstd");
+    sdl.linkSystemLibrary("SDL3");
+    sdl.linkLibC();
+    b.installArtifact(sdl);
 
     const lib_unit_tests = b.addTest(.{
         .root_module = lib_mod,
