@@ -64,8 +64,13 @@ const SDL = struct {
         return .Pending;
     }
     pub fn future(self: *SDL) !void {
-        try self.kyoto.schedule(.{ .ptr = self, .vtable = &.{ .poll = SDL.poll } });
-        try self.kyoto.schedule(.{ .ptr = self, .vtable = &.{ .poll = SDL.eventPoll } });
+        var fut = try self.kyoto.newFuture();
+        fut.ptr = self;
+        fut.vtable.poll = SDL.poll;
+
+        fut = try self.kyoto.newFuture();
+        fut.ptr = self;
+        fut.vtable.poll = SDL.eventPoll;
     }
 };
 
