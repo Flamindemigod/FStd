@@ -15,12 +15,12 @@ or you can use [wikipedia](https://en.wikipedia.org/wiki/Futures_and_promises).
 
 Kyoto is currently in a unfinished state
 Features:
-    [x] Basic Scheduling of Futures
-    [x] Future Chaining
-    [x] Sleep
-    [ ] Using epoll to wait for file descriptors (Might be out of scope)
-    [ ] Awaiting futures within a future. (Future suspending. Would require being able to access the future within the poll function. and maybe a macro to convert the types around)
-    [ ] Turning a list of futures into a future of a list aka. [sequenceA](https://hackage.haskell.org/package/base-4.21.0.0/docs/Prelude.html#v:sequenceA)
+- [x] Basic Scheduling of Futures
+- [x] Future Chaining
+- [x] Sleep
+- [ ] Using epoll to wait for file descriptors (Might be out of scope)
+- [ ] Awaiting futures within a future. (Future suspending. Would require being able to access the future within the poll function. and maybe a macro to convert the types around)
+- [ ] Turning a list of futures into a future of a list aka. [sequenceA](https://hackage.haskell.org/package/base-4.21.0.0/docs/Prelude.html#v:sequenceA)
 
 ## Contributing
 Currently I'm the only person working on FStd as its mostly a personal project. However feel free to make bug reports or make pull requests if you'd like, If you want to contribute code then first make a issue with what you'd like to do. I don't want to waste your time by rejecting pull requests because it doesnt align with my vision of the project. It doesnt stop you from forking the project and making changes, as long as its within the license.
