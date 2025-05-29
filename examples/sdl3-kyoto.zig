@@ -64,8 +64,8 @@ const SDL = struct {
         return .Pending;
     }
     pub fn future(self: *SDL) !void {
-        _ = try self.kyoto.schedule(.{ .ptr = self, .vtable = &.{ .poll = SDL.poll } });
-        _ = try self.kyoto.schedule(.{ .ptr = self, .vtable = &.{ .poll = SDL.eventPoll } });
+        try self.kyoto.schedule(.{ .ptr = self, .vtable = &.{ .poll = SDL.poll } });
+        try self.kyoto.schedule(.{ .ptr = self, .vtable = &.{ .poll = SDL.eventPoll } });
     }
 };
 
@@ -79,5 +79,5 @@ pub fn main() !void {
     defer sdl.deinit();
 
     try sdl.future();
-    try kyoto.run();
+    kyoto.run();
 }
