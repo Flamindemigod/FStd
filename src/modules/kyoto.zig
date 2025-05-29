@@ -6,26 +6,34 @@ const std = @import("std");
 const testing = std.testing;
 pub const Poll = union(enum) {
     Pending,
-    Finished: *anyopaque,
+    Finished: ?*anyopaque,
 };
 
 pub const Future = struct {
     kyoto: *Self,
+    dependent: bool = false,
     ptr: ?*anyopaque = null,
     thenFut: ?*Future = null,
     vtable: VTable,
     const VTable = struct {
-        poll: *const fn (ptr: *anyopaque) Poll,
+        poll: *const fn (ptr: ?*anyopaque) Poll,
     };
 
     pub fn poll(self: *const Future) Poll {
-        return self.vtable.poll(self.ptr.?);
+        return self.vtable.poll(self.ptr);
     }
 
     // pub fn then(self: *Future) *Future {
-    pub fn then(self: *Future, thenFn: VTable) !*Future {
+    pub fn then(self: *Future, thenFn: *const fn (ptr: ?*anyopaque) Poll) !*Future {
         const fut = try self.kyoto.newFuture();
-        fut.vtable = thenFn;
+        fut.vtable.poll = thenFn;
+        fut.dependent = true;
+        self.thenFut = fut;
+        return fut;
+    }
+
+    pub fn thenFuture(self: *Future, fut: *Future) !*Future {
+        fut.dependent = true;
         self.thenFut = fut;
         return fut;
     }
@@ -60,6 +68,38 @@ pub fn newFuture(self: *Self) !*Future {
     return fut;
 }
 
+//Time to sleep in millis
+pub fn sleep(self: *Self, timeMs: i64) !*Future {
+    const Sleep = struct {
+        const Sleep = @This();
+        allocator: std.mem.Allocator,
+        timeEnd: i64,
+        fn init(allocator: std.mem.Allocator, durationMs: i64) !*Sleep {
+            const s = try allocator.create(Sleep);
+            s.allocator = allocator;
+            s.timeEnd = std.time.milliTimestamp() + durationMs;
+            return s;
+        }
+        fn deinit(s: *Sleep) void {
+            s.allocator.destroy(s);
+        }
+        fn poll(ctx: ?*anyopaque) Poll {
+            const sleepSelf: *Sleep = @ptrCast(@alignCast(ctx));
+            if (sleepSelf.timeEnd > std.time.milliTimestamp()) {
+                return .Pending;
+            } else {
+                std.debug.print("Finished Sleeping\n", .{});
+                sleepSelf.deinit();
+                return .{ .Finished = null };
+            }
+        }
+    };
+    const fut = try self.newFuture();
+    fut.ptr = try Sleep.init(self.allocator, timeMs);
+    fut.vtable.poll = Sleep.poll;
+    return fut;
+}
+
 pub fn schedule(self: *Self, future: Future) !void {
     _ = self;
     _ = future;
@@ -81,13 +121,16 @@ fn done(self: *Self) bool {
 pub fn run(self: *Self) void {
     while (!self.done()) {
         for (self.futures.items, 0..) |future, idx| {
-            if (future.ptr == null) continue;
+            if (future.dependent) continue;
             const res = future.poll();
             switch (res) {
                 .Pending => continue,
                 .Finished => |ptr| {
                     const fut = self.futures.swapRemove(@min(idx, self.futures.items.len - 1));
-                    if (fut.thenFut) |thenFut| thenFut.ptr = ptr;
+                    if (fut.thenFut) |thenFut| {
+                        if (thenFut.ptr == null) thenFut.ptr = ptr;
+                        thenFut.dependent = false;
+                    }
                     self.allocator.destroy(fut);
                 },
             }

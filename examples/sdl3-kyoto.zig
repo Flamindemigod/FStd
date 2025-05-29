@@ -31,7 +31,7 @@ const SDL = struct {
         c.SDL_DestroyWindow(self.window);
         c.SDL_Quit();
     }
-    fn eventPoll(ctx: *anyopaque) FStd.Kyoto.Poll {
+    fn eventPoll(ctx: ?*anyopaque) FStd.Kyoto.Poll {
         const self: *SDL = @ptrCast(@alignCast(ctx));
         while (c.SDL_PollEvent(&self.event)) {
             if (self.event.type == c.SDL_EVENT_QUIT) {
@@ -42,7 +42,7 @@ const SDL = struct {
         return .Pending;
     }
 
-    fn poll(ctx: *anyopaque) FStd.Kyoto.Poll {
+    fn poll(ctx: ?*anyopaque) FStd.Kyoto.Poll {
         const self: *SDL = @ptrCast(@alignCast(ctx));
         if (self.exited) {
             return .{ .Finished = self };
