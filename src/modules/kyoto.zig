@@ -88,7 +88,6 @@ pub fn sleep(self: *Self, timeMs: i64) !*Future {
             if (sleepSelf.timeEnd > std.time.milliTimestamp()) {
                 return .Pending;
             } else {
-                std.debug.print("Finished Sleeping\n", .{});
                 sleepSelf.deinit();
                 return .{ .Finished = null };
             }
