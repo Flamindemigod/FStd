@@ -2,19 +2,21 @@
 FStd aka. Flamin's Std is a collection of utilities i wrote for that i felt was really lacking within zig's standard library
 
 ## What this project is not.
-This project is not a replacement for the standard libray.
-    `FStd is a complementary library that you should use along with the standard library`
-It is not a standalone library. It is very dependent on the zig standard library.
-    `This means it might break in the future depending on how zig evovles in the future`
+This project is not a replacement for the standard libray.<br>
+&nbsp;&nbsp;&nbsp;&nbsp;`FStd is a complementary library that you should use along with the standard library`<br>
+It is not a standalone library. It is very dependent on the zig standard library.<br>
+&nbsp;&nbsp;&nbsp;&nbsp;`This means it might break in the future depending on how zig evovles in the future`<br>
 
 ## What does this libray contain
+### Kyoto
 Currently the library contains a Async Runtime called `Kyoto` inspired by Rust's Tokio
 And it implements Async using Futures. Futures are really well documented through the rust docs. 
 You can read them [here](https://doc.rust-lang.org/std/future/trait.Future.html)
 or you can use [wikipedia](https://en.wikipedia.org/wiki/Futures_and_promises).
 
 Kyoto is currently in a unfinished state
-Features:
+
+#### Features:
 - [x] Basic Scheduling of Futures
 - [x] Future Chaining
 - [x] Sleep
