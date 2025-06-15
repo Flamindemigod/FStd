@@ -3,51 +3,91 @@
 //TODO: Implement Awaiting Mulitple Futures
 
 const std = @import("std");
+const a = @import("Arboroboros.zig");
+const Arb = a.Arboroboros;
+const Node = a.Node;
 const testing = std.testing;
 pub const Poll = union(enum) {
     Pending,
     Finished: ?*anyopaque,
+    Killed,
 };
 
 pub const Future = struct {
     kyoto: *Self,
-    dependent: bool = false,
     ptr: ?*anyopaque = null,
-    thenFut: ?*Future = null,
     vtable: VTable,
     const VTable = struct {
         poll: *const fn (ptr: ?*anyopaque) Poll,
+        handover: ?*const fn (ptr: ?*anyopaque, prev_ptr: ?*anyopaque) void,
+        destroy: ?*const fn (ptr: ?*anyopaque) void,
+        reset: ?*const fn (ptr: ?*anyopaque) void,
+
+        pub fn init(self: *VTable) void {
+            self.handover = null;
+            self.destroy = null;
+            self.reset = null;
+        }
     };
 
     pub fn poll(self: *const Future) Poll {
         return self.vtable.poll(self.ptr);
     }
 
+    pub fn reset(self: *Future) void {
+        if (self.vtable.reset) |resetFn| return resetFn(self.ptr);
+    }
+
+    pub fn destroy(self: *Future) void {
+        if (self.vtable.destroy) |destroyFn| return destroyFn(self.ptr);
+    }
+
+    pub fn handover(self: *Future, prev_ptr: ?*anyopaque) void {
+        if (self.vtable.handover) |handoverFn| return handoverFn(self.ptr, prev_ptr);
+        if (self.ptr == null) self.ptr = prev_ptr;
+    }
+
     // pub fn then(self: *Future) *Future {
     pub fn then(self: *Future, thenFn: *const fn (ptr: ?*anyopaque) Poll) !*Future {
         const fut = try self.kyoto.newFuture();
         fut.vtable.poll = thenFn;
-        fut.dependent = true;
-        self.thenFut = fut;
-        return fut;
+        if (self.kyoto.futures.findNode(self)) |node| {
+            _ = try self.kyoto.futures.insertNode(node, fut);
+            return fut;
+        }
+        return error.BaseFutureNotScheduled;
     }
 
     pub fn thenFuture(self: *Future, fut: *Future) !*Future {
-        fut.dependent = true;
-        self.thenFut = fut;
-        return fut;
+        if (self.kyoto.futures.findNode(self)) |node| {
+            _ = try self.kyoto.futures.insertNode(node, fut);
+            return fut;
+        }
+        return error.BaseFutureNotScheduled;
+    }
+
+    pub fn loop(loopTail: *Future, loopHead: *Future) !void {
+        if (loopTail.kyoto.futures.findNode(loopHead)) |nodeHead| {
+            if (loopTail.kyoto.futures.findNode(loopTail)) |nodeTail| {
+                try nodeTail.insertParent(nodeHead);
+                try nodeTail.insertBranch(nodeHead);
+                return;
+            }
+        }
+        return error.BaseFutureNotScheduled;
     }
 };
 
 const Self = @This();
-
 allocator: std.mem.Allocator,
-futures: std.ArrayList(*Future),
+futures: Arb(*Future),
 
-pub fn init(allocator: std.mem.Allocator) Self {
+pub fn init(allocator: std.mem.Allocator) !Self {
+    const root_fut = try allocator.create(Future);
+    root_fut.vtable.init();
     return .{
         .allocator = allocator,
-        .futures = .init(allocator),
+        .futures = try .init(allocator, root_fut),
     };
 }
 
@@ -61,11 +101,18 @@ pub fn init(allocator: std.mem.Allocator) Self {
 //So preallocating on the heap should mitigate the issue.
 pub fn newFuture(self: *Self) !*Future {
     const fut = try self.allocator.create(Future);
-    try self.futures.append(fut);
     fut.kyoto = self;
     fut.ptr = null;
-    fut.thenFut = null;
+    fut.vtable.init();
     return fut;
+}
+
+pub fn newFutureNode(self: *Self) !*Node(*Future) {
+    const fut = try self.allocator.create(Future);
+    fut.kyoto = self;
+    fut.ptr = null;
+    fut.vtable.init();
+    return try self.futures.insertNode(self.futures.rootNode, fut);
 }
 
 //Time to sleep in millis
@@ -74,65 +121,77 @@ pub fn sleep(self: *Self, timeMs: i64) !*Future {
         const Sleep = @This();
         allocator: std.mem.Allocator,
         timeEnd: i64,
+        duration: i64,
+        previousPtr: ?*anyopaque,
+
         fn init(allocator: std.mem.Allocator, durationMs: i64) !*Sleep {
             const s = try allocator.create(Sleep);
             s.allocator = allocator;
             s.timeEnd = std.time.milliTimestamp() + durationMs;
+            s.duration = durationMs;
             return s;
         }
-        fn deinit(s: *Sleep) void {
-            s.allocator.destroy(s);
+
+        fn reset(ctx: ?*anyopaque) void {
+            const s: *Sleep = @ptrCast(@alignCast(ctx));
+            s.timeEnd = s.timeEnd + s.duration;
+        }
+
+        fn deinit(ctx: ?*anyopaque) void {
+            const sleepSelf: *Sleep = @ptrCast(@alignCast(ctx));
+            sleepSelf.allocator.destroy(sleepSelf);
         }
         fn poll(ctx: ?*anyopaque) Poll {
             const sleepSelf: *Sleep = @ptrCast(@alignCast(ctx));
             if (sleepSelf.timeEnd > std.time.milliTimestamp()) {
                 return .Pending;
             } else {
-                sleepSelf.deinit();
-                return .{ .Finished = null };
+                Sleep.reset(ctx);
+                return .{ .Finished = sleepSelf.previousPtr };
             }
+        }
+        fn handover(ctx: ?*anyopaque, prev_ptr: ?*anyopaque) void {
+            const sleepSelf: *Sleep = @ptrCast(@alignCast(ctx));
+            sleepSelf.previousPtr = prev_ptr;
         }
     };
     const fut = try self.newFuture();
     fut.ptr = try Sleep.init(self.allocator, timeMs);
     fut.vtable.poll = Sleep.poll;
+    fut.vtable.handover = Sleep.handover;
+    fut.vtable.destroy = Sleep.deinit;
+    fut.vtable.reset = Sleep.reset;
     return fut;
 }
 
-pub fn schedule(self: *Self, future: Future) !void {
-    _ = self;
-    _ = future;
-    @compileError("Using schedule is deprecated Use 'Kyoto.newFuture' instead");
-    //try self.futures.append(future);
+pub fn schedule(self: *Self, future: *Future) !*Future {
+    _ = try self.futures.insertNode(self.futures.rootNode, future);
+    return future;
 }
 
 pub fn deinit(self: *Self) void {
-    for (self.futures.items) |future| {
-        self.allocator.destroy(future);
+    for (self.futures.nodes.items) |node| {
+        node.node.destroy();
+        self.allocator.destroy(node.node);
     }
     self.futures.deinit();
 }
 
 fn done(self: *Self) bool {
-    return self.futures.items.len == 0;
+    return self.futures.nodeBuffer.items.len == 0;
 }
 
-pub fn run(self: *Self) void {
-    while (!self.done()) {
-        for (self.futures.items, 0..) |future, idx| {
-            if (future.dependent) continue;
-            const res = future.poll();
-            switch (res) {
-                .Pending => continue,
-                .Finished => |ptr| {
-                    const fut = self.futures.swapRemove(@min(idx, self.futures.items.len - 1));
-                    if (fut.thenFut) |thenFut| {
-                        if (thenFut.ptr == null) thenFut.ptr = ptr;
-                        thenFut.dependent = false;
-                    }
-                    self.allocator.destroy(fut);
-                },
-            }
+pub fn run(self: *Self) !void {
+    while (try self.futures.peak()) |future| {
+        switch (future.node.poll()) {
+            .Pending => self.futures.skip(future),
+            .Killed => break,
+            .Finished => |ptr| {
+                const node = try self.futures.nextNode();
+                for (node.?.branches.items) |branch| {
+                    branch.node.handover(ptr);
+                }
+            },
         }
     }
 }

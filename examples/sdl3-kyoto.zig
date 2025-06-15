@@ -45,7 +45,7 @@ const SDL = struct {
     fn poll(ctx: ?*anyopaque) FStd.Kyoto.Poll {
         const self: *SDL = @ptrCast(@alignCast(ctx));
         if (self.exited) {
-            return .{ .Finished = self };
+            return .Killed;
         }
         _ = c.SDL_SetRenderDrawColor(self.renderer, self.color, self.color, self.color, 255);
         if (self.color == 255) {
@@ -60,17 +60,20 @@ const SDL = struct {
         }
         _ = c.SDL_RenderClear(self.renderer);
         _ = c.SDL_RenderPresent(self.renderer);
-        c.SDL_Delay(16);
-        return .Pending;
+        return .{ .Finished = self };
     }
     pub fn future(self: *SDL) !void {
+        const sleepfut = try self.kyoto.sleep(16);
         var fut = try self.kyoto.newFuture();
         fut.ptr = self;
         fut.vtable.poll = SDL.poll;
-
+        _ = try self.kyoto.schedule(fut);
+        _ = try fut.thenFuture(sleepfut);
+        try sleepfut.loop(fut);
         fut = try self.kyoto.newFuture();
         fut.ptr = self;
         fut.vtable.poll = SDL.eventPoll;
+        _ = try self.kyoto.schedule(fut);
     }
 };
 
@@ -78,11 +81,11 @@ pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
-    var kyoto = FStd.Kyoto.init(allocator);
+    var kyoto = try FStd.Kyoto.init(allocator);
     defer kyoto.deinit();
     var sdl = try SDL.init(&kyoto);
     defer sdl.deinit();
 
     try sdl.future();
-    kyoto.run();
+    try kyoto.run();
 }

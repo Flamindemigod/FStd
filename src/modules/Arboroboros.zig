@@ -13,7 +13,7 @@ pub const ParentHandling = enum {
     All,
 };
 
-fn Node(comptime T: type) type {
+pub fn Node(comptime T: type) type {
     return struct {
         allocator: std.mem.Allocator,
         //TODO: add a field to hold refrences to the parents. Mostly used to check if previous depenencidies have been satisfied
@@ -51,6 +51,8 @@ pub fn Arboroboros(comptime T: type) type {
     return struct {
         allocator: std.mem.Allocator,
         rootNode: *Node(T),
+        //TODO: Store nodes in a hashmap to make lookups faster.
+        //For now just gonna do O(N) lookups
         nodes: std.ArrayList(*Node(T)),
         nodeBuffer: std.ArrayList(*Node(T)),
         visitedNodes: std.ArrayList(*Node(T)),
@@ -92,6 +94,48 @@ pub fn Arboroboros(comptime T: type) type {
             self.nodes.deinit();
         }
 
+        pub fn skip(self: *Self, node: *Node(T)) void {
+            if (std.mem.indexOf(*Node(T), self.nodeBuffer.items, &.{node})) |idx| {
+                const a = self.nodeBuffer.items[idx];
+                const b = self.nodeBuffer.getLast();
+                self.nodeBuffer.items[idx] = b;
+                self.nodeBuffer.items[self.nodeBuffer.items.len - 1] = a;
+            }
+        }
+
+        //TODO: Need a way to mark a node as skipped or incomplete.
+        //AKA to be visted again at a later time.
+        //For now just using a swap on the node buffer should serve the same purpose
+        pub fn peak(self: *Self) !?*Node(T) {
+            if (std.mem.eql(*Node(T), self.nodes.items, self.visitedNodes.items)) return null;
+            if (self.nodeBuffer.items.len == 0) {
+                self.visitedNodes.clearRetainingCapacity();
+                try self.nodeBuffer.appendSlice(self.rootNode.branches.items);
+                try self.visitedNodes.append(self.rootNode);
+            }
+
+            for (self.nodeBuffer.items) |node| {
+                switch (self.parentHandling) {
+                    .All => {
+                        if (node.parents.items.len == 0) continue;
+                        if (!std.mem.containsAtLeast(*Node(T), self.visitedNodes.items, node.parents.items.len, node.parents.items)) {
+                            continue;
+                        }
+                    },
+                    .AtleastOne => {},
+                }
+                if (std.mem.containsAtLeast(*Node(T), self.visitedNodes.items, 1, &.{node})) {
+                    //TODO: Make a callback that can be registered to run here to detect a loop
+                    self.visitedNodes.clearRetainingCapacity();
+                    //break;
+                }
+
+                return node;
+            }
+            self.nodeBuffer.clearRetainingCapacity();
+            return null;
+        }
+
         pub fn nextNode(self: *Self) !?*Node(T) {
             if (std.mem.eql(*Node(T), self.nodes.items, self.visitedNodes.items)) return null;
             if (self.nodeBuffer.items.len == 0) {
@@ -111,7 +155,7 @@ pub fn Arboroboros(comptime T: type) type {
                     .AtleastOne => {},
                 }
                 if (std.mem.containsAtLeast(*Node(T), self.visitedNodes.items, 1, &.{node})) {
-                    std.debug.print("Been here done that\n", .{});
+                    //TODO: Make a callback that can be registered to run here to detect a loop
                     self.visitedNodes.clearRetainingCapacity();
                     //break;
                 }
@@ -122,6 +166,13 @@ pub fn Arboroboros(comptime T: type) type {
                 return node;
             }
             self.nodeBuffer.clearRetainingCapacity();
+            return null;
+        }
+
+        pub fn findNode(self: *Self, nodeInt: T) ?*Node(T) {
+            for (self.nodes.items) |node| {
+                if (node.node == nodeInt) return node;
+            }
             return null;
         }
     };

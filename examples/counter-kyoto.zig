@@ -29,7 +29,7 @@ const Counter = struct {
             return .{ .Finished = self };
         }
     }
-    pub fn schedule(self: *Counter) !*FStd.Kyoto.Future {
+    pub fn toFut(self: *Counter) !*FStd.Kyoto.Future {
         const fut = try self.kyoto.newFuture();
         fut.ptr = self;
         fut.vtable.poll = Counter.poll;
@@ -44,12 +44,12 @@ pub fn main() !void {
     const allocator = gpa.allocator();
 
     //Init kyoto with the allocator and defer deinit
-    var kyoto = FStd.Kyoto.init(allocator);
+    var kyoto = try FStd.Kyoto.init(allocator);
     defer kyoto.deinit();
 
     //Make a counter and schedule it to run after 2 seconds and then run the then function 3 times after the main execution is done
-    var counter1 = Counter{ .value = 0, .to = 10, .kyoto = &kyoto };
-    var f = try counter1.schedule();
+    var counter1 = Counter{ .value = 0, .to = 100, .kyoto = &kyoto };
+    var f = try kyoto.schedule(try counter1.toFut());
     f = try f.then(Counter.then); //then takes a function of the type `*const fn(ctx: ?*anyopaque) FStd.Kyoto.Poll` and makes a new future
     //and attaches it to the current future and forwards the pointer to the new future
 
@@ -61,10 +61,10 @@ pub fn main() !void {
 
     //Make a counter and schedule it to run after 5 seconds and then run the then2 function after the main execution is done
     var counter2 = Counter{ .value = 5, .to = 20, .kyoto = &kyoto };
-    f = try kyoto.sleep(5000);
-    f = try f.thenFuture(try counter2.schedule());
+    f = try kyoto.schedule(try kyoto.sleep(5000));
+    f = try f.thenFuture(try counter2.toFut());
     f = try f.then(Counter.then2);
 
     //Run the Kyoto Event loop
-    kyoto.run();
+    try kyoto.run();
 }
