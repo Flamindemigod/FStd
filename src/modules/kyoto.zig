@@ -182,11 +182,26 @@ fn done(self: *Self) bool {
 }
 
 pub fn run(self: *Self) !void {
+    var skipped: usize = 0;
     while (try self.futures.peak()) |future| {
+        //FIXME: This is a fookin hack
+        //If we dont do this. the runtime busyloops
+        //and currently i dont have a good idea for preventing it.
+        //Currently the best i have in mind is using something like poll or epoll to let the kernel take over till one of the futures are finished.
+        //but this only really works for sleep or anything that doesnt require cpu cycles.
+        //So currently hard to implement in a way that works for every future.
+        //Testing with sdl3-kyoto showed a cpu usage of 6.3% without the hack
+        //And 0.5% with the hack
+        std.time.sleep(skipped * 10000);
+        std.debug.print("skipped: {d}\n", .{skipped});
         switch (future.node.poll()) {
-            .Pending => self.futures.skip(future),
+            .Pending => {
+                skipped += 1;
+                self.futures.skip(future);
+            },
             .Killed => break,
             .Finished => |ptr| {
+                skipped = 0;
                 const node = try self.futures.nextNode();
                 for (node.?.branches.items) |branch| {
                     branch.node.handover(ptr);
