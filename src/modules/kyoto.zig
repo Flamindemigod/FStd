@@ -193,7 +193,6 @@ pub fn run(self: *Self) !void {
         //Testing with sdl3-kyoto showed a cpu usage of 6.3% without the hack
         //And 0.5% with the hack
         std.time.sleep(skipped * 10000);
-        std.debug.print("skipped: {d}\n", .{skipped});
         switch (future.node.poll()) {
             .Pending => {
                 skipped += 1;
