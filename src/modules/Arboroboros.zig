@@ -19,8 +19,8 @@ pub fn Node(comptime T: type) type {
         //TODO: add a field to hold refrences to the parents. Mostly used to check if previous depenencidies have been satisfied
         //In the context of kyoto, To check if the previous futures are finished. as a node in Arbororoboros can have multiple parents
         //hence kyoto should be able to await multiple futures
-        parents: std.ArrayList(*Node(T)),
         node: T,
+        parents: std.ArrayList(*Node(T)),
         branches: std.ArrayList(*Node(T)),
         const Self = @This();
         pub fn init(allocator: std.mem.Allocator, node: T) !*Self {
@@ -107,7 +107,7 @@ pub fn Arboroboros(comptime T: type) type {
         //AKA to be visted again at a later time.
         //For now just using a swap on the node buffer should serve the same purpose
         pub fn peak(self: *Self) !?*Node(T) {
-            if (std.mem.eql(*Node(T), self.nodes.items, self.visitedNodes.items)) return null;
+            if (std.mem.eql(*Node(T), self.nodes.items, self.visitedNodes.items) and self.visitedNodes.getLast().branches.items.len == 0) return null;
             if (self.nodeBuffer.items.len == 0) {
                 self.visitedNodes.clearRetainingCapacity();
                 try self.nodeBuffer.appendSlice(self.rootNode.branches.items);
@@ -137,7 +137,7 @@ pub fn Arboroboros(comptime T: type) type {
         }
 
         pub fn nextNode(self: *Self) !?*Node(T) {
-            if (std.mem.eql(*Node(T), self.nodes.items, self.visitedNodes.items)) return null;
+            if (std.mem.eql(*Node(T), self.nodes.items, self.visitedNodes.items) and self.visitedNodes.getLast().branches.items.len == 0) return null;
             if (self.nodeBuffer.items.len == 0) {
                 self.visitedNodes.clearRetainingCapacity();
                 try self.nodeBuffer.appendSlice(self.rootNode.branches.items);

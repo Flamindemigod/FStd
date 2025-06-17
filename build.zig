@@ -39,6 +39,9 @@ pub fn build(b: *std.Build) void {
     const counter = makeExample(b, "examples/counter-kyoto.zig", "counter-kyoto");
     b.installArtifact(counter);
 
+    const chaining = makeExample(b, "examples/chaining-kyoto.zig", "chaining-kyoto");
+    b.installArtifact(chaining);
+
     const lib_unit_tests = b.addTest(.{
         .root_module = lib_mod,
     });

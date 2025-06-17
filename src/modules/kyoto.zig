@@ -10,6 +10,7 @@ const testing = std.testing;
 pub const Poll = union(enum) {
     Pending,
     Finished: ?*anyopaque,
+    //.Killed causes the runtime to terminate
     Killed,
 };
 
