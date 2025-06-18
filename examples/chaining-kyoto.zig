@@ -10,16 +10,15 @@ const Step = enum {
     Count,
 };
 
-
-fn poll(ctx: ?*anyopaque) Fstd.Kyoto.Poll{
+fn poll(ctx: ?*anyopaque) Fstd.Kyoto.Poll {
     const counter: *usize = @ptrCast(@alignCast(ctx));
-    if(counter.* >= @intFromEnum(Step.Count)) return .Killed;
+    if (counter.* >= @intFromEnum(Step.Count)) return .Killed;
     std.debug.print("{s}\n", .{@tagName(@as(Step, @enumFromInt(counter.*)))});
     counter.* += 1;
-    return .{.Finished = ctx};
+    return .{ .Finished = ctx };
 }
 
-pub fn main() !void{
+pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
