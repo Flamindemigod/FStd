@@ -32,7 +32,7 @@ pub fn create() !Temp {
     };
 }
 
-pub fn path(self: *Temp)[]const u8{
+pub fn path(self: *Temp) []const u8 {
     return self._path[0..self._path_len];
 }
 
@@ -43,8 +43,8 @@ pub fn destroy(self: *Temp) void {
 
 test "TempRW" {
     const testing = std.testing;
-{
-    var temp = try Temp.create();
+    {
+        var temp = try Temp.create();
         defer temp.destroy();
         var buf: [255]u8 = undefined;
         try temp.fd.writeAll("Hello there. This is a test of making a temp file in zigland\n");
