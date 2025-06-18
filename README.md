@@ -21,8 +21,29 @@ Kyoto is currently in a unfinished state
 - [x] Future Chaining
 - [x] Sleep
 - [ ] Using epoll to wait for file descriptors (Might be out of scope)
-- [ ] Awaiting futures within a future. (Future suspending. Would require being able to access the future within the poll function. and maybe a macro to convert the types around)
-- [ ] Turning a list of futures into a future of a list aka. [sequenceA](https://hackage.haskell.org/package/base-4.21.0.0/docs/Prelude.html#v:sequenceA)
+- [x] Futures as depenendencies
+
+### Arboroboros
+<details>
+<summary>The brain fog is strong with this one</summary>
+A really weird tree implementation hallucinated by my brain to try and make kyoto futures be able to describe dependencies
+Loops might be allowed in this implementation
+So this is no longer a tree. It's a donut. [See](https://www.youtube.com/watch?v=9NlqYr6-TpA)
+I would have called the module a donut. but i found someone calling it a Arboroboros
+and i cant get it out of my head
+I would credit them but their account no longer exists
+</details>
+Arboroboros is essentially a directed cylic graph that i wrote myself with no previous knowledge on how these things work. It's most likely not super efficient. Theres plenty of low hanging fruit if i were to look to optimize it. It started as a tree implementation but i realized i needed a way to define loops for Kyoto. This is essentially the backing store of futures for Kyoto.
+
+### Temp
+A really basic Temp file module. Creates a Temp file and returns a structure containing the file descriptor.
+The temp file must be destroyed at the end of use. This closes the file and removes it from the /tmp dir.
+Afaik the kernel doesnt clean these things up automatically,
+unless you're using `mkstemp` from libc by the c runtime.
+However we don't link with lib c so we need to just do this ourselves.
+
+#### TODO
+- [ ] Set the temp path based on OS
 
 ## Contributing
 Currently I'm the only person working on FStd as its mostly a personal project. However feel free to make bug reports or make pull requests if you'd like, If you want to contribute code then first make a issue with what you'd like to do. I don't want to waste your time by rejecting pull requests because it doesnt align with my vision of the project. It doesnt stop you from forking the project and making changes, as long as its within the license.
