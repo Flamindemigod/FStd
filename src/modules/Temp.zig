@@ -1,12 +1,18 @@
 const std = @import("std");
 const builtin = @import("builtin");
 const Temp = @This();
-_path: [255]u8,
+const MAX_PATH = switch (builtin.os.tag) {
+    .windows => std.os.windows.MAX_PATH,
+    .linux => std.os.linux.PATH_MAX,
+    else => unreachable,
+};
+
+_path: [MAX_PATH]u8,
 _path_len: usize,
 fd: std.fs.File,
 
 pub fn create() !Temp {
-    var buf: [255]u8 = undefined;
+    var buf: [MAX_PATH]u8 = undefined;
     const pid = switch (builtin.os.tag) {
         .linux => std.os.linux.getpid(),
         .windows => std.os.windows.GetCurrentProcessId(),
@@ -37,8 +43,8 @@ pub fn destroy(self: *Temp) void {
 
 test "TempRW" {
     const testing = std.testing;
-    {
-        var temp = try Temp.create();
+{
+    var temp = try Temp.create();
         defer temp.destroy();
         var buf: [255]u8 = undefined;
         try temp.fd.writeAll("Hello there. This is a test of making a temp file in zigland\n");
