@@ -36,6 +36,11 @@ pub fn build(b: *std.Build) void {
     sdl.linkLibC();
     b.installArtifact(sdl);
 
+    const sdlEtch = makeExample(b, "examples/sdl3-etch.zig", "sdl3-etch");
+    sdlEtch.linkSystemLibrary("SDL3");
+    sdlEtch.linkLibC();
+    b.installArtifact(sdlEtch);
+
     const counter = makeExample(b, "examples/counter-kyoto.zig", "counter-kyoto");
     b.installArtifact(counter);
 
