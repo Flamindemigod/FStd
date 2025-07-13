@@ -137,7 +137,8 @@ pub fn Arboroboros(comptime T: type) type {
         }
 
         pub fn nextNode(self: *Self) !?*Node(T) {
-            if (std.mem.eql(*Node(T), self.nodes.items, self.visitedNodes.items) and self.visitedNodes.getLast().branches.items.len == 0) return null;
+            //HACK: Currently Just checking the size of the buffers instead of checking the nodes themselves. idk what std.mem.eql is doing that its returning false sometimes
+            if (self.nodes.items.len == self.visitedNodes.items.len and self.visitedNodes.getLast().branches.items.len == 0) return null;
             if (self.nodeBuffer.items.len == 0) {
                 self.visitedNodes.clearRetainingCapacity();
                 try self.nodeBuffer.appendSlice(self.rootNode.branches.items);
