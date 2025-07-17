@@ -49,13 +49,20 @@ pub fn main() !void {
     var quit = false;
     _ = try etch.Box(Etch.BoxProps{ .any = .{
         .bounds = .{ .x = 20, .height = 100, .width = 100 },
-        .BgColor = .fromHex(0xC0FFEE69),
-    } });
+    }, .draggable = true, .border = 10 });
+    _ = try etch.Box(Etch.BoxProps{ .any = .{
+        .bounds = .{ .height = 40, .width = 100 },
+    }, .draggable = true, .border = 10 });
+    _ = try etch.Box(Etch.BoxProps{ .any = .{
+        .bounds = .{ .x = 10, .height = 200, .width = 100 },
+    }, .draggable = true, .border = 10 });
+    _ = try etch.Box(Etch.BoxProps{ .any = .{
+        .bounds = .{ .height = 100, .width = 500 },
+    }, .draggable = true, .border = 10 });
     var event: c.SDL_Event = undefined;
     while (!quit) {
         //Update Mouse State Within Etch
         etch.mouse.state = @as(*const Etch.Mouse.MouseState, @ptrCast(&c.SDL_GetMouseState(&etch.mouse.pos.x, &etch.mouse.pos.y))).*;
-        _ = c.SDL_GetWindowSizeInPixels(window, @ptrCast(&windowBounds.width), @ptrCast(&windowBounds.height));
         etch.updateRootBounds(windowBounds);
         //etch.updateRootBounds(bounds: Common.Rect)
         while (c.SDL_PollEvent(&event)) {
@@ -64,7 +71,11 @@ pub fn main() !void {
                 c.SDL_EVENT_KEY_DOWN => {
                     if (event.key.key == c.SDLK_Q) quit = true;
                 },
+                c.SDL_EVENT_WINDOW_RESIZED => {
+                    _ = c.SDL_GetWindowSizeInPixels(window, @ptrCast(&windowBounds.width), @ptrCast(&windowBounds.height));
+                },
                 c.SDL_EVENT_MOUSE_MOTION => {
+
                     //std.debug.print("{any}\n", .{event.motion});
                 },
                 else => {},
@@ -72,7 +83,8 @@ pub fn main() !void {
         }
         _ = c.SDL_SetRenderDrawColor(renderer, 18, 18, 18, 255);
         _ = c.SDL_RenderClear(renderer);
-        try etch.sketch();
+        etch.twist();
+        etch.sketch();
         _ = c.SDL_RenderPresent(renderer);
         c.SDL_Delay(16);
     }

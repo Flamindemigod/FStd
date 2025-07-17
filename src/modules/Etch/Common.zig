@@ -1,10 +1,14 @@
+const std = @import("std");
 const Etch = @import("../Etch.zig");
+
+pub const State = enum { Hovered, Focus, FocusWithin, None };
 
 pub const RenderContext = struct {
     FgColor: ?Color = null,
     BgColor: ?Color = null,
     bounds: ?Rect = null,
-    state: enum { Hovered, Focus, FocusWithin, None } = .None,
+    border: ?struct { size: u8, color: Color } = null,
+    state: State = .None,
 };
 
 pub const FRect = struct {
@@ -92,15 +96,122 @@ pub const Mouse = struct {
 };
 
 pub const AnyProps = struct {
-    FgColor: Color = .fromHex(0xEFEFEF),
-    BgColor: Color = .fromHex(0x181818),
     bounds: Rect,
+};
+
+pub const Style = struct {
+    hovered: Styling = .fromStylix(&.Default, .Hovered),
+    focus: Styling = .fromStylix(&.Default, .Focus),
+    focusWithin: Styling = .fromStylix(&.Default, .FocusWithin),
+    none: Styling = .fromStylix(&.Default, .None),
+};
+
+pub const Styling = struct {
+    fgColor: Color = .fromHex(0xEFEFEFFF),
+    bgColor: Color = .fromHex(0x181818FF),
+    borderColor: Color = .fromHex(0x282828FF),
+
+    pub fn fromStylix(stylix: *const Stylix, mode: State) Styling {
+        switch (mode) {
+            .None => return Styling{
+                .bgColor = .fromHex(stylix.base01),
+                .fgColor = .fromHex(stylix.base08),
+                .borderColor = .fromHex(stylix.base03),
+            },
+            .Hovered => return Styling{
+                .bgColor = .fromHex(stylix.base0F),
+                .fgColor = .fromHex(stylix.base08),
+                .borderColor = .fromHex(stylix.base04),
+            },
+            .Focus => return Styling{
+                .bgColor = .fromHex(stylix.base03),
+                .fgColor = .fromHex(stylix.base08),
+                .borderColor = .fromHex(stylix.base04),
+            },
+            .FocusWithin => return Styling{
+                .bgColor = .fromHex(stylix.base01),
+                .fgColor = .fromHex(stylix.base08),
+                .borderColor = .fromHex(stylix.base04),
+            },
+            //else => @compileLog(mode),
+        }
+        return fromStylix(stylix, .None);
+    }
+
+    pub const Stylix = struct {
+        base00: u32,
+        base01: u32,
+        base02: u32,
+        base03: u32,
+        base04: u32,
+        base05: u32,
+        base06: u32,
+        base07: u32,
+        base08: u32,
+        base09: u32,
+        base0A: u32,
+        base0B: u32,
+        base0C: u32,
+        base0D: u32,
+        base0E: u32,
+        base0F: u32,
+
+        //Just Ripped from my personal Stylix Themes
+        pub const Default: Stylix = .{
+            .base00 = 0x191B27FF,
+            .base01 = 0x75314DFF,
+            .base02 = 0x67687AFF,
+            .base03 = 0xEF72BDFF,
+            .base04 = 0xF0A2C9FF,
+            .base05 = 0xE5DDEEFF,
+            .base06 = 0xFDECF4FF,
+            .base07 = 0xFAECF9FF,
+            .base08 = 0xDA66BBFF,
+            .base09 = 0xCF73A4FF,
+            .base0A = 0x8493A7FF,
+            .base0B = 0xA18F68FF,
+            .base0C = 0x928EA1FF,
+            .base0D = 0xA38B9BFF,
+            .base0E = 0x6C92DBFF,
+            .base0F = 0xB18691FF,
+        };
+
+        pub fn jsonParse(allocator: std.mem.Allocator, source: std.json.Scanner, options: std.json.ParseOptions) !Stylix {
+            _ = allocator;
+            _ = options;
+            if (try source.next() != .object_begin) {
+                return error.UnexpectedToken;
+            }
+            switch (try source.next()) {
+                else => |e| @compileLog(e),
+            }
+            return Stylix{
+                .base00 = 0xC0FFEE69,
+                .base01 = 0xC0FFEE69,
+                .base02 = 0xC0FFEE69,
+                .base03 = 0xC0FFEE69,
+                .base04 = 0xC0FFEE69,
+                .base05 = 0xC0FFEE69,
+                .base06 = 0xC0FFEE69,
+                .base07 = 0xC0FFEE69,
+                .base08 = 0xC0FFEE69,
+                .base09 = 0xC0FFEE69,
+                .base0A = 0xC0FFEE69,
+                .base0B = 0xC0FFEE69,
+                .base0C = 0xC0FFEE69,
+                .base0D = 0xC0FFEE69,
+                .base0E = 0xC0FFEE69,
+                .base0F = 0xC0FFEE69,
+            };
+        }
+    };
 };
 
 pub const Widget = struct {
     const VTable = struct {
         //How to even propagate events through this?
         layout: *const fn (etch: *Etch, ctx: *anyopaque, parentRC: *const RenderContext, widgetRC: *RenderContext) void,
+        handle_events: *const fn (etch: *Etch, ctx: *anyopaque) bool,
         render: *const fn (etch: *Etch, ctx: *anyopaque, renderContext: *const RenderContext) void,
         deinit: *const fn (ctx: *anyopaque) void,
     };
@@ -109,6 +220,9 @@ pub const Widget = struct {
     ptr: *anyopaque,
     vtable: VTable,
 
+    pub fn handle_events(self: *Widget) bool {
+        return self.vtable.handle_events(self.etch, self.ptr);
+    }
     pub fn render(self: *Widget) void {
         self.vtable.render(self.etch, self.ptr, &self.renderContext);
     }
